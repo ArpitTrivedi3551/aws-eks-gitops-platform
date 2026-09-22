@@ -3,6 +3,10 @@ kind: Service
 metadata:
   name: petclinic
   namespace: petclinic
+  labels: { app: petclinic }
 spec:
   selector: { app: petclinic }
-  ports: [{ port: 80, targetPort: 8080 }]
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
