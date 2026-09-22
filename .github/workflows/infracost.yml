@@ -1,0 +1,35 @@
+name: Infracost
+
+# Estimates the monthly cost of Terraform changes and comments it on the PR.
+on:
+  pull_request:
+    branches: [ main ]
+    paths: [ 'infra/**' ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  infracost:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Infracost
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: Generate cost breakdown
+        run: |
+          infracost breakdown --path infra/envs/staging \
+            --format json --out-file /tmp/infracost.json
+
+      - name: Post cost comment on the PR
+        run: |
+          infracost comment github --path /tmp/infracost.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --pull-request "${{ github.event.pull_request.number }}" \
+            --github-token "${{ secrets.GITHUB_TOKEN }}" \
+            --behavior update

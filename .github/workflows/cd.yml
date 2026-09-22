@@ -1,0 +1,135 @@
+name: CD
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write       
+
+jobs:
+  build-push:
+    name: Build, scan, push image
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.vars.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute short SHA
+        id: vars
+        run: echo "sha=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Test before shipping
+        working-directory: ./app
+        run: mvn --batch-mode verify -Dtest='!PostgresIntegrationTests'
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (amd64, load locally to scan before push)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./app
+          platforms: linux/amd64
+          load: true
+          tags: ${{ vars.IMAGE_NAME }}:${{ steps.vars.outputs.sha }}
+
+      - name: Install Trivy
+        run: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+
+      - name: Trivy image scan
+        run: trivy image --severity HIGH,CRITICAL --exit-code 0 --no-progress ${{ vars.IMAGE_NAME }}:${{ steps.vars.outputs.sha }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push image (sha + latest)
+        run: |
+          docker tag ${{ vars.IMAGE_NAME }}:${{ steps.vars.outputs.sha }} ${{ vars.IMAGE_NAME }}:latest
+          docker push ${{ vars.IMAGE_NAME }}:${{ steps.vars.outputs.sha }}
+          docker push ${{ vars.IMAGE_NAME }}:latest
+
+  deploy-staging:
+    name: Deploy to staging (GitOps)
+    needs: build-push
+    runs-on: ubuntu-latest
+    environment: staging         
+    steps:
+      - uses: actions/checkout@v4     
+
+      - name: Bump image tag in the GitOps manifest
+        run: |
+          SHA="${{ needs.build-push.outputs.sha }}"
+          # rewrite the image line in the Rollout to the new SHA
+          sed -i "s#\(${{ vars.IMAGE_NAME }}\):[^\"']*#\1:${SHA}#" gitops/petclinic/rollout.yaml
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add gitops/petclinic/rollout.yaml
+          git commit -m "gitops(staging): petclinic ${SHA}" || echo "no change to commit"
+          git push
+
+  deploy-production:
+    name: Promote to production (manual approval)
+    needs: [ build-push, deploy-staging ]
+    runs-on: ubuntu-latest
+    environment: production  
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+
+      - name: Tag the tested image as production
+        run: |
+          SHA="${{ needs.build-push.outputs.sha }}"
+          docker pull ${{ vars.IMAGE_NAME }}:${SHA}
+          docker tag  ${{ vars.IMAGE_NAME }}:${SHA} ${{ vars.IMAGE_NAME }}:prod-${SHA}
+          docker push ${{ vars.IMAGE_NAME }}:prod-${SHA}
+
+      - name: Record production promotion
+        run: |
+          SHA="${{ needs.build-push.outputs.sha }}"
+          echo "$(date -u +%FT%TZ)  promoted ${{ vars.IMAGE_NAME }}:prod-${SHA}" >> gitops/PRODUCTION_PROMOTIONS.log
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add gitops/PRODUCTION_PROMOTIONS.log
+          git commit -m "promote to production: prod-${SHA}" || echo "no change"
+          git push
+
+  notify-failure:
+    needs: [ build-push, deploy-staging, deploy-production ]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Email on failure
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          from: GitHub Actions <${{ secrets.MAIL_USERNAME }}>
+          to: ${{ secrets.MAIL_TO }}
+          subject: "CD failed: ${{ github.repository }}"
+          body: |
+            A CD job failed.
+            Repo:   ${{ github.repository }}
+            Commit: ${{ github.sha }}
+            Run:    ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

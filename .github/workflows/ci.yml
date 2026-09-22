@@ -1,0 +1,74 @@
+name: CI
+
+
+on:
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  iac-scan:
+    name: Scan Terraform (IaC)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Trivy
+        run: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+
+
+      - name: Trivy IaC scan
+        run: trivy config --severity HIGH,CRITICAL --exit-code 0 --no-progress infra/
+
+      - name: Checkov IaC scan (second opinion)
+        run: |
+          pip install --quiet checkov
+          checkov -d infra/ --quiet --compact --soft-fail
+
+  app-test-scan:
+    name: Test app + scan dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Unit + integration tests
+        working-directory: ./app
+        run: mvn --batch-mode verify -Dtest='!PostgresIntegrationTests'
+
+      - name: Install Trivy
+        run: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+
+      - name: Trivy dependency scan
+        run: trivy fs --scanners vuln --severity HIGH,CRITICAL --exit-code 0 --no-progress ./app
+
+  notify-failure:
+    needs: [ iac-scan, app-test-scan ]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Email on failure
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          from: GitHub Actions <${{ secrets.MAIL_USERNAME }}>
+          to: ${{ secrets.MAIL_TO }}
+          subject: "CI failed: ${{ github.repository }} PR #${{ github.event.number }}"
+          body: |
+            CI failed.
+            Repo:   ${{ github.repository }}
+            PR:     #${{ github.event.number }}
+            Commit: ${{ github.sha }}
+            Run:    ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
