@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/<YOU>/<REPO>.git  
+    repoURL: https://github.com/ArpitTrivedi3551/aws-eks-gitops-platform.git 
     targetRevision: main
     path: gitops/petclinic
   destination:

@@ -18,6 +18,7 @@ spec:
           ports: [{ containerPort: 8080 }]
           env:
             - { name: SPRING_PROFILES_ACTIVE, value: "postgres" }
+            - { name: SPRING_SQL_INIT_MODE, value: "never" }
             - name: SPRING_DATASOURCE_URL
               valueFrom: { secretKeyRef: { name: petclinic-db, key: url } }
             - name: SPRING_DATASOURCE_USERNAME
