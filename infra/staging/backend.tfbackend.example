@@ -1,0 +1,5 @@
+bucket         = "CHANGEME-senior-tfstate-<ACCOUNT_ID>"
+key            = "senior-devops/staging/terraform.tfstate"
+region         = "us-east-1"
+dynamodb_table = "CHANGEME-senior-tf-locks"
+encrypt        = true

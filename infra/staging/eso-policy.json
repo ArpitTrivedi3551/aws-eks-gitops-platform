@@ -1,0 +1,5 @@
+{ "Version":"2012-10-17","Statement":[
+  {"Effect":"Allow","Action":["secretsmanager:GetSecretValue","secretsmanager:DescribeSecret"],
+   "Resource":"arn:aws:secretsmanager:us-east-1:672937918844:secret:senior-devops-staging-db-credentials*"},
+  {"Effect":"Allow","Action":["kms:Decrypt"],
+   "Resource":"arn:aws:kms:us-east-1:672937918844:key/9ff96772-259f-4397-9cec-f86ac3f6c78d"}]}

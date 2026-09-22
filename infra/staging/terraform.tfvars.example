@@ -1,0 +1,10 @@
+project     = "senior-devops"
+environment = "staging"
+aws_region  = "us-east-1"
+azs         = ["us-east-1a", "us-east-1b"]
+
+# REQUIRED: your public IP as a /32 (find it with: curl -s ifconfig.me)
+admin_cidr = "203.0.113.10/32"
+
+single_nat_gateway = true
+# bastion_key_name = "my-keypair"   # optional; leave commented to use SSM only
