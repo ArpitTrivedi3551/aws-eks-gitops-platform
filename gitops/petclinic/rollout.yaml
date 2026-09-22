@@ -31,7 +31,9 @@ spec:
     canary:
       steps:
         - setWeight: 20
-        - pause: { duration: 30 }         
+        - pause: { duration: 30 }       
+        - analysis:
+            template:[{templateName: petclinic-success-rate }]  
         - setWeight: 50
         - pause: { duration: 30 }
         - setWeight: 100

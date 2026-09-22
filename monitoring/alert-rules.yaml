@@ -1,0 +1,63 @@
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: petclinic-slo
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: petclinic.availability
+      rules:
+        - alert: PetclinicHighErrorRate
+          expr: |
+            100 * sum(rate(http_server_requests_seconds_count{namespace="petclinic",status=~"5.."}[5m]))
+            / clamp_min(sum(rate(http_server_requests_seconds_count{namespace="petclinic"}[5m])),1) > 5
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "PetClinic 5xx error rate above 5%"
+            description: "5xx error rate is {{ $value | printf \"%.1f\" }}% over the last 5m."
+
+        - alert: PetclinicHighLatency
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(http_server_requests_seconds_bucket{namespace="petclinic"}[5m])) by (le)) > 1.5
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "PetClinic p95 latency above 1.5s"
+            description: "p95 latency is {{ $value | printf \"%.2f\" }}s."
+
+        - alert: PetclinicPodCrashLooping
+          expr: increase(kube_pod_container_status_restarts_total{namespace="petclinic"}[15m]) > 3
+          for: 5m
+          labels: { severity: critical }
+          annotations:
+            summary: "PetClinic pod is crash-looping"
+            description: "Pod {{ $labels.pod }} restarted repeatedly in the last 15m."
+
+        - alert: PetclinicErrorBudgetFastBurn
+          expr: |
+            (
+              sum(rate(http_server_requests_seconds_count{namespace="petclinic",status=~"5.."}[1h]))
+              / clamp_min(sum(rate(http_server_requests_seconds_count{namespace="petclinic"}[1h])),1)
+            ) > (14.4 * 0.005)
+          for: 5m
+          labels: { severity: critical, slo: petclinic-availability }
+          annotations:
+            summary: "PetClinic burning error budget fast (14.4x)"
+            description: "At this rate the 30-day error budget is exhausted in ~2 days. Freeze risky deploys."
+
+        - alert: PetclinicErrorBudgetSlowBurn
+          expr: |
+            (
+              sum(rate(http_server_requests_seconds_count{namespace="petclinic",status=~"5.."}[6h]))
+              / clamp_min(sum(rate(http_server_requests_seconds_count{namespace="petclinic"}[6h])),1)
+            ) > (3 * 0.005)
+          for: 15m
+          labels: { severity: warning, slo: petclinic-availability }
+          annotations:
+            summary: "PetClinic burning error budget (3x)"
+            description: "Sustained elevated errors are consuming the monthly budget faster than planned."
