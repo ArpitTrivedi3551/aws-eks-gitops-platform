@@ -429,7 +429,8 @@ are GitOps, whatever the gitops/ folder on main says is what Argo CD makes true 
 cluster. Production changes additionally require a manual approval before the rollout
 proceeds.
 
-Kubernetes/Istio Debug Scenario
+## Kubernetes/Istio Debug Scenario
+
 first I can Is the Pod actually alive and ready?
 verify pod shows ready ``` kubectl get pods -n <namespace>```
  then check service is pointing to pod or not  ```kubectl get endpoints <service_name> -n <namespace>```
