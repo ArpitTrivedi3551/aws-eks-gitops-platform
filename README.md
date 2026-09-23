@@ -429,11 +429,14 @@ are GitOps, whatever the gitops/ folder on main says is what Argo CD makes true 
 cluster. Production changes additionally require a manual approval before the rollout
 proceeds.
 
-## Honest status
+Kubernetes/Istio Debug Scenario
+first I can Is the Pod actually alive and ready?
+verify pod shows ready ``` kubectl get pods -n <namespace>```
+ then check service is pointing to pod or not  ```kubectl get endpoints <service_name> -n <namespace>```
+check port and targetport is correct ot not
+if issue is not from above then check the sidecar status is it awake and updated `istioctl proxy-status`.
+then if rules are valid `istioctl analyze - <namespace>`.
 
-Built and demonstrated live: the full private network, RDS Multi-AZ, EKS, secrets via
-ESO+KMS, GitOps with Argo CD, the canary mechanism (including the analysis gate refusing to
-promote without metrics), the app reachable through the ALB, and the monitoring stack with
-the dashboard and alert rules. Still finishing: the GitHub Actions CI pipeline with
-Docker/IaC/dependency scanning, Infracost output, and a clean green-canary run once the
-analysis query resolves against Prometheus.
+```kubectl logs <pod-name> -c istio-proxy -n <namespace>```
+---
+
