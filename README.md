@@ -440,4 +440,12 @@ then if rules are valid `istioctl analyze - <namespace>`.
 
 ```kubectl logs <pod-name> -c istio-proxy -n <namespace>```
 ---
+<img width="465" height="121" alt="Screenshot 2026-09-23 030113" src="https://github.com/user-attachments/assets/e820a7a1-71a8-446b-b4b4-1289c9ec6f46" />
+<img width="959" height="469" alt="Screenshot 2026-09-23 023237" src="https://github.com/user-attachments/assets/4375be1a-2af3-4889-a40b-6c7cc8010619" />
+<img width="959" height="461" alt="Screenshot 2026-09-23 023224" src="https://github.com/user-attachments/assets/69e24772-660e-47a9-9235-1cb3f5632575" />
+<img width="779" height="242" alt="Screenshot 2026-09-23 022941" src="https://github.com/user-attachments/assets/7b3592d4-9234-4fdf-a456-4a10dc747093" />
+<img width="954" height="511" alt="Screenshot 2026-09-23 022728" src="https://github.com/user-attachments/assets/c155efcf-ceb1-4ae1-b1c7-856b2a40ebbc" />
+<img width="441" height="366" alt="Screenshot 2026-09-23 022348" src="https://github.com/user-attachments/assets/5a23ce40-b7db-44fe-b02f-74700bf4b794" />
+<img width="563" height="398" alt="Screenshot 2026-09-23 021844" src="https://github.com/user-attachments/assets/08deac6a-47f5-4aa6-8d5e-0c916144f77d" />
+<img width="742" height="169" alt="Screenshot 2026-09-23 003808" src="https://github.com/user-attachments/assets/c80b98b4-f5e3-4476-9435-0c9b98d44a6b" />
 
